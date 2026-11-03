@@ -1,0 +1,549 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>
+:root { padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
+body { margin: 0; }
+img { max-width: 100%; }
+[hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<title>Görünüşe Göre</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..900&family=Figtree:wght@400;600;700&family=JetBrains+Mono:wght@500;700&display=swap">
+<style>
+/* Düzen: tek ekranlı kaydırmalı kart destesi; sonuç ekranı aşağı kayan bir "rapor". Sol seçenek gül kırmızısı, sağ seçenek çivit. */
+:root {
+  --bg: #E9ECF1;
+  --card: #FFFFFF;
+  --ink: #15171C;
+  --muted: #5B6271;
+  --line: #D3D8E1;
+  --left: #C42F63;
+  --right: #3446C9;
+  --warn: #B7791F;
+  --display: "Archivo", "Arial Narrow", system-ui, sans-serif;
+  --body: "Figtree", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #111318; --card: #1B1E25; --ink: #ECEEF3; --muted: #9AA2B1; --line: #2C313B;
+    --left: #F0628F; --right: #7B8CFF; --warn: #E2A84B; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #111318; --card: #1B1E25; --ink: #ECEEF3; --muted: #9AA2B1; --line: #2C313B;
+  --left: #F0628F; --right: #7B8CFF; --warn: #E2A84B; color-scheme: dark;
+}
+html, body { height: 100%; }
+body {
+  background: var(--bg); color: var(--ink); font-family: var(--body); font-size: 16px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  -webkit-tap-highlight-color: transparent;
+}
+button { font: inherit; cursor: pointer; }
+button:focus-visible, a:focus-visible { outline: 3px solid var(--ink); outline-offset: 3px; }
+.mono { font-family: var(--mono); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+h1, h2, h3 { font-family: var(--display); text-wrap: balance; margin: 0; }
+
+/* ---------- Başlangıç ---------- */
+#start { height: 100%; display: flex; flex-direction: column; justify-content: center; gap: 24px; max-width: 440px; margin: 0 auto; padding-block: 24px; }
+#start h1 { font-size: clamp(44px, 14vw, 64px); font-weight: 900; font-variation-settings: "wdth" 125; line-height: .92; letter-spacing: -.02em; }
+#start h1 span { display: block; }
+#start h1 .l { color: var(--left); }
+#start h1 .r { color: var(--right); text-align: right; }
+.lede { font-size: 18px; line-height: 1.45; margin: 0; }
+.rules { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.rules li { display: grid; grid-template-columns: 40px 1fr; gap: 10px; align-items: baseline; background: var(--card); border-radius: 12px; padding: 10px 12px; font-size: 15px; line-height: 1.35; }
+.rules b { font-family: var(--display); font-weight: 900; font-variation-settings: "wdth" 115; font-size: 18px; }
+.primary { background: var(--ink); color: var(--bg); border: 0; border-radius: 999px; padding: 18px 24px; font-weight: 700; font-size: 18px; }
+.fine { font-size: 13px; color: var(--muted); margin: 0; text-align: center; }
+
+/* ---------- Oyun ---------- */
+#game { height: 100%; display: flex; flex-direction: column; max-width: 440px; margin: 0 auto; padding-block: 14px; gap: 12px; }
+.topbar { display: flex; justify-content: space-between; align-items: baseline; }
+.topbar b { font-family: var(--display); font-weight: 900; font-variation-settings: "wdth" 115; font-size: 18px; }
+.progress { height: 4px; background: var(--line); border-radius: 4px; overflow: hidden; }
+.progress i { display: block; height: 100%; width: 0; background: var(--ink); transition: width .3s; }
+.deck { position: relative; flex: 1; min-height: 0; }
+.card {
+  position: absolute; inset: 0; background: var(--card); border-radius: 22px; overflow: hidden;
+  display: flex; flex-direction: column; box-shadow: 0 1px 0 var(--line), 0 18px 40px -22px rgba(10, 14, 25, .45);
+  touch-action: none; user-select: none; -webkit-user-select: none; cursor: grab; will-change: transform;
+}
+.card.behind { transform: translateY(10px) scale(.95); opacity: .7; pointer-events: none; }
+.timer { height: 6px; background: var(--line); }
+.timer i { display: block; height: 100%; width: 100%; background: var(--ink); transform-origin: left; }
+.timer.low i { background: var(--warn); }
+.card .row { display: flex; justify-content: space-between; padding: 10px 16px 0; }
+.portrait { flex: 1; min-height: 90px; margin: 8px 12px 0; border-radius: 14px; background: color-mix(in oklab, var(--hue) 30%, var(--card)); display: flex; align-items: flex-end; justify-content: center; overflow: hidden; }
+.portrait svg { height: 100%; max-width: 100%; display: block; }
+.info { padding: 12px 16px 14px; display: flex; flex-direction: column; gap: 8px; }
+.info h2 { font-size: 26px; font-weight: 800; font-variation-settings: "wdth" 110; }
+.clues { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.clues li { display: grid; grid-template-columns: 92px 1fr; gap: 8px; font-size: 14px; line-height: 1.35; align-items: baseline; }
+.clues li span { font-family: var(--mono); font-size: 10px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.stamp {
+  position: absolute; top: 64px; max-width: 70%; padding: 6px 12px; border: 4px solid; border-radius: 8px;
+  font-family: var(--display); font-weight: 900; font-variation-settings: "wdth" 110; font-size: 24px; line-height: 1.05; text-transform: uppercase;
+  opacity: 0; pointer-events: none; background: color-mix(in oklab, var(--card) 70%, transparent);
+}
+.stamp-R { left: 20px; color: var(--right); transform: rotate(-12deg); }
+.stamp-L { right: 20px; color: var(--left); transform: rotate(12deg); text-align: right; }
+.controls { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.controls button { border: 0; border-radius: 16px; padding: 14px 10px; font-weight: 700; font-size: 16px; line-height: 1.15; color: #fff; min-height: 56px; }
+.controls .L { background: var(--left); }
+.controls .R { background: var(--right); }
+.controls button:active { transform: scale(.97); }
+.flash { position: absolute; inset: 0; display: grid; place-items: center; pointer-events: none; font-family: var(--display); font-weight: 900; font-size: 34px; color: var(--warn); opacity: 0; transition: opacity .2s; }
+.flash.on { opacity: 1; }
+
+/* ---------- Sonuç ---------- */
+#result { max-width: 560px; margin: 0 auto; padding-block: 28px 48px; display: flex; flex-direction: column; gap: 28px; }
+.score { display: flex; flex-direction: column; gap: 8px; }
+.score .big { font-family: var(--display); font-weight: 900; font-variation-settings: "wdth" 125; font-size: clamp(64px, 22vw, 104px); line-height: .9; letter-spacing: -.03em; font-variant-numeric: tabular-nums; }
+.score .big small { font-size: .35em; color: var(--muted); letter-spacing: 0; }
+.score p { margin: 0; font-size: 18px; }
+.twist { background: var(--ink); color: var(--bg); border-radius: 22px; padding: 22px 20px; display: flex; flex-direction: column; gap: 14px; }
+.twist .mono { color: color-mix(in oklab, var(--bg) 65%, var(--ink)); }
+.twist h2 { font-size: clamp(28px, 8vw, 38px); font-weight: 900; font-variation-settings: "wdth" 112; line-height: 1.02; }
+.twist p { margin: 0; line-height: 1.5; max-width: 62ch; }
+.verdict { font-weight: 700; font-size: 18px; }
+.bias { display: flex; flex-direction: column; gap: 16px; }
+.bias h3, .people h3 { font-size: 20px; font-weight: 800; font-variation-settings: "wdth" 110; }
+.bias-note { margin: -8px 0 0; color: var(--muted); font-size: 14px; line-height: 1.4; }
+.brow { display: grid; gap: 6px; padding: 12px 14px; border-radius: 14px; background: var(--card); }
+.brow.top { box-shadow: inset 0 0 0 2px var(--warn); }
+.brow .lab { display: flex; justify-content: space-between; gap: 10px; font-weight: 600; flex-wrap: wrap; }
+.brow .lab span { font-family: var(--mono); font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.brow .flag { font-family: var(--mono); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--warn); font-weight: 700; }
+.track { position: relative; height: 12px; border-radius: 6px; background: color-mix(in oklab, var(--left) 22%, var(--card)); }
+.track .fill { position: absolute; inset: 0 auto 0 0; border-radius: 6px; background: var(--right); }
+.track .truth { position: absolute; top: -5px; bottom: -5px; width: 3px; margin-left: -1.5px; background: var(--ink); border-radius: 2px; }
+.keys { display: flex; gap: 16px; flex-wrap: wrap; font-size: 13px; color: var(--muted); }
+.keys i { display: inline-block; width: 12px; height: 12px; border-radius: 3px; vertical-align: -1px; margin-right: 6px; }
+.people { display: flex; flex-direction: column; gap: 14px; }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+.p { background: var(--card); border-radius: 14px; overflow: hidden; display: flex; flex-direction: column; }
+.p .mini { height: 120px; background: color-mix(in oklab, var(--hue) 30%, var(--card)); display: flex; justify-content: center; align-items: flex-end; }
+.p .mini svg { height: 100%; }
+.p .t { padding: 10px 12px 12px; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.p .t b { font-size: 15px; }
+.p .pair { font-size: 12px; color: var(--muted); }
+.job { font-family: var(--mono); font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--right); }
+.p .yours { font-size: 12px; color: var(--muted); }
+.p .note { font-size: 13px; line-height: 1.4; margin: 0; }
+.share { background: var(--card); border-radius: 22px; padding: 20px; display: flex; flex-direction: column; gap: 12px; }
+.share .msg { font-size: 15px; line-height: 1.45; background: var(--bg); border-radius: 12px; padding: 12px 14px; margin: 0; user-select: all; overflow-wrap: anywhere; }
+.btns { display: flex; gap: 10px; flex-wrap: wrap; }
+.btn { flex: 1 1 140px; display: inline-flex; justify-content: center; align-items: center; border-radius: 999px; padding: 14px 18px; font-weight: 700; text-decoration: none; border: 0; }
+.btn.wa { background: #1FA855; color: #fff; }
+.btn.ghost { background: transparent; color: var(--ink); box-shadow: inset 0 0 0 2px var(--line); }
+
+@media (max-height: 700px) {
+  .info h2 { font-size: 22px; }
+  .clues li { font-size: 13px; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition-duration: .01ms !important; } }
+</style>
+
+<section id="start">
+  <h1><span class="l">Görünüşe</span><span class="r">Göre</span></h1>
+  <p class="lede">12 kişi, her birinde farklı iki meslek. Portreye ve 3 ipucuna bakıp mesleğini tahmin et.</p>
+  <ul class="rules">
+    <li><b>12 sn</b>Her kart için süren var. Süre biterse cevap yanlış sayılır.</li>
+    <li><b>⇄</b>Meslekler her kartta değişir, hangisinin solda hangisinin sağda olduğu da.</li>
+    <li><b>?!</b>İpuçlarının bir kısmı bilerek yanıltıcı. Bazıları da tam göründüğü gibi.</li>
+  </ul>
+  <button class="primary" id="go">Başla</button>
+  <p class="fine">Doğru cevaplar oyunun sonunda açıklanır. Kişiler kurgusaldır.</p>
+</section>
+
+<section id="game" hidden>
+  <div class="topbar"><b>Görünüşe Göre</b><span class="mono" id="count">1 / 12</span></div>
+  <div class="progress"><i id="bar"></i></div>
+  <div class="deck" id="deck"></div>
+  <div class="controls">
+    <button class="L" id="bL">←</button>
+    <button class="R" id="bR">→</button>
+  </div>
+</section>
+
+<section id="result" hidden></section>
+
+<script>
+// Paylaşım mesajına eklenecek oyun linki
+const SHARE_URL = "https://dersimizpr.github.io/odevler/%C3%96dev%201/";
+const LIMIT = 12000; // kart başına süre (ms)
+
+const SKIN = ['#F3D3BA', '#E3B58F', '#C68F63', '#9B6441', '#6A4229'];
+// g: k=kadın, e=erkek · build: slim | mid | broad
+// pair: [geleneksel olarak "erkek mesleği" sayılan, "kadın mesleği" sayılan]
+// job: gerçek meslek (m | f) · stereo: görünüşün ve ipuçlarının ilk akla getirdiği (m | f)
+const PEOPLE = [
+  { name: 'Zeynep', age: 27, g: 'k', build: 'slim', skin: 0, hair: 'long', hc: '#3B2A20', glasses: true, cloth: 'cardigan', top: '#B596CF', hue: '#B596CF',
+    pair: ['Pilot', 'Kabin memuru'], job: 'm', stereo: 'f',
+    clues: ['Kapadokya\'da balon fotoğrafı çekiyor.', 'Pasaport, üç ülkenin parası, el kremi.', 'Anonsları ezbere bilir, herkese gülümser.'],
+    note: 'Pilot. Anonsları ezbere biliyor, çünkü her uçuşta kendisi yapıyor.' },
+  { name: 'Mehmet', age: 36, g: 'e', build: 'broad', skin: 2, hair: 'short', hc: '#1E1A18', beard: 'full', tattoo: true, cloth: 'tshirt', top: '#23252B', hue: '#7C8899',
+    pair: ['Kamyon şoförü', 'Kuaför'], job: 'f', stereo: 'm',
+    clues: ['Motosikletle uzun tur.', 'Kask, termos kahve, bir avuç toka.', 'Saatlerce ayakta durur, sohbeti hiç bitmez.'],
+    note: 'Kuaför. Mahallenin en çok sıra beklenen salonu onun.' },
+  { name: 'Ayşe', age: 58, g: 'k', build: 'mid', skin: 0, hair: 'bun', hc: '#B9B6B1', cloth: 'sweater', top: '#2E3F66', hue: '#8FB7D9',
+    pair: ['Veri bilimci', 'İK uzmanı'], job: 'f', stereo: 'f',
+    clues: ['Akşamları Python kursuna gidiyor.', 'Okuma gözlüğü, ajanda, tansiyon ilacı.', 'Her kararı önce bir Excel tablosuna döker.'],
+    note: 'İK uzmanı. İşe alımdaki önyargıyı ölçmek için Python öğreniyor. Bu kez görünüş doğru söyledi.' },
+  { name: 'Burak', age: 24, g: 'e', build: 'slim', skin: 1, hair: 'curly', hc: '#2B1D14', glasses: true, cloth: 'hoodie', top: '#8D939C', hue: '#E8C35A',
+    pair: ['Yazılımcı', 'Hemşire'], job: 'f', stereo: 'm',
+    clues: ['Online satranç turnuvası.', 'Laptop, enerji içeceği, kablosuz kulaklık.', 'Gece vardiyasında hiç esnemez.'],
+    note: 'Ameliyathane hemşiresi. Laptopu satranç analizleri için.' },
+  { name: 'Hasan', age: 61, g: 'e', build: 'mid', skin: 1, hair: 'bald', hc: '#A9A7A3', beard: 'mustache', glasses: true, cloth: 'suit', top: '#3A3F4A', hue: '#C9B79C',
+    pair: ['CEO', 'Yönetici asistanı'], job: 'm', stereo: 'm',
+    clues: ['Gazete ve demli çay.', 'İki telefon, ajanda, dolma kalem.', 'Herkesin doğum gününü bilir, takvimi o tutar.'],
+    note: 'Lojistik şirketinin CEO\'su. Asistanı yok, takvimini kendisi tutuyor.' },
+  { name: 'Elif', age: 26, g: 'k', build: 'slim', skin: 0, hair: 'bob', hc: '#E46FA4', piercing: true, cloth: 'tshirt', top: '#1D1D22', hue: '#F2A3C4',
+    pair: ['Elektrikçi', 'Diyetisyen'], job: 'm', stereo: 'f',
+    clues: ['Rock konseri.', 'Yara bandı, izole bant, şekersiz sakız.', 'Herkese "su içtin mi?" diye sorar.'],
+    note: 'Elektrikçi. Konser sahnelerinin ışık ve ses kurulumunu yapıyor.' },
+  { name: 'Emre', age: 29, g: 'e', build: 'broad', skin: 3, hair: 'buzz', hc: '#141110', cloth: 'tshirt', top: '#C2412D', hue: '#F0A36B',
+    pair: ['Futbol hakemi', 'Bale eğitmeni'], job: 'm', stereo: 'm',
+    clues: ['Her sabah esneme ve denge çalışması.', 'Ter bandı, yedek ayakkabı, kronometre.', 'Herkesin duruşunu düzeltir.'],
+    note: 'Futbol hakemi. Esnekliği bale derslerinden, 90 dakika koşabilmek için.' },
+  { name: 'Selin', age: 33, g: 'k', build: 'broad', skin: 2, hair: 'short', hc: '#4A2E1E', earrings: true, cloth: 'sweater', top: '#5F6B3A', hue: '#A9C27A',
+    pair: ['İnşaat mühendisi', 'Anaokulu öğretmeni'], job: 'm', stereo: 'f',
+    clues: ['Kürek antrenmanı.', 'Boya kalemleri, şerit metre, çikolata.', 'Sesini yükseltmeden 20 kişiyi toplar.'],
+    note: 'İnşaat mühendisi. Şantiyede 40 kişilik ekip yönetiyor; boya kalemleri çizimler için.' },
+  { name: 'Kerem', age: 45, g: 'e', build: 'mid', skin: 0, hair: 'short', hc: '#6B4A2F', glasses: true, cloth: 'suit', top: '#2B3445', hue: '#9FB0C8',
+    pair: ['Cerrah', 'Ebe'], job: 'f', stereo: 'm',
+    clues: ['Opera.', 'El dezenfektanı, nöbet çizelgesi, bebek fotoğrafları.', 'Gece yarısı çağrılsa hemen yola çıkar.'],
+    note: 'Ebe. 20 yılda 3000\'den fazla doğuma yardım etti.' },
+  { name: 'Cem', age: 38, g: 'e', build: 'broad', skin: 1, hair: 'short', hc: '#231A14', beard: 'full', cloth: 'tshirt', top: '#2F4A6B', hue: '#7FB3A8',
+    pair: ['Oto tamircisi', 'Çiçekçi'], job: 'm', stereo: 'm',
+    clues: ['Bahçede gül yetiştiriyor.', 'Budama makası, tornavida, ıslak mendil.', 'Bayram öncesi en yoğun haftasıdır.'],
+    note: 'Oto tamircisi. Bahçesinde 40 çeşit gül var.' },
+  { name: 'Fatma', age: 52, g: 'k', build: 'mid', skin: 1, hair: 'hijab', hc: '#3E7F86', glasses: true, cloth: 'sweater', top: '#53435E', hue: '#C7B4D8',
+    pair: ['Polis', 'Psikolog'], job: 'f', stereo: 'f',
+    clues: ['Polisiye dizi maratonu.', 'Not defteri, ses kayıt cihazı, kağıt mendil.', 'Her cevaba "peki neden?" diye sorar.'],
+    note: 'Klinik psikolog. Polisiye diziler en büyük zaafı.' },
+  { name: 'Deniz', age: 31, g: 'k', build: 'broad', skin: 4, hair: 'long', hc: '#141110', earrings: true, cloth: 'tshirt', top: '#E0E3E8', hue: '#E6B26B',
+    pair: ['İtfaiyeci', 'Fizyoterapist'], job: 'f', stereo: 'm',
+    clues: ['Maraton koşuyor.', 'Kahve termosu, ağrı kesici jel, bant.', 'Ağır kaldırmayı bilir, bel sağlığına takıntılıdır.'],
+    note: 'Fizyoterapist. Hastalarına önce doğru kaldırmayı öğretiyor.' },
+];
+const CLUE_LABELS = ['Hafta sonu', 'Çantasında', 'Bir huyu'];
+
+const GROUPS = [
+  { name: 'Kadınlar', dat: 'Kadınlara', test: p => p.g === 'k' },
+  { name: 'Erkekler', dat: 'Erkeklere', test: p => p.g === 'e' },
+  { name: 'Gözlüklüler', dat: 'Gözlüklülere', test: p => p.glasses },
+  { name: 'İri / sportif görünenler', dat: 'İri ve sportif görünenlere', test: p => p.build === 'broad' },
+  { name: '45 yaş ve üstü', dat: '45 yaş ve üstündekilere', test: p => p.age >= 45 },
+];
+
+// Sayıya göre "kaçının" eki: 1'inin, 6'sının, 9'unun...
+const OF = ["0'ının", "1'inin", "2'sinin", "3'ünün", "4'ünün", "5'inin", "6'sının", "7'sinin", "8'inin", "9'unun", "10'unun", "11'inin", "12'sinin"];
+
+// ---------- Portre çizimi ----------
+function portrait(p) {
+  const s = SKIN[p.skin], hc = p.hc, broad = p.build === 'broad';
+  const hw = broad ? 82 : p.build === 'slim' ? 56 : 68, L = 100 - hw, R = 100 + hw;
+  const shade = 'rgba(0,0,0,.14)';
+  let o = '';
+  // arka saç
+  if (p.hair === 'long') o += `<path d="M60 92 Q58 46 100 46 Q142 46 140 92 L146 172 Q100 184 54 172 Z" fill="${hc}"/>`;
+  if (p.hair === 'bob') o += `<path d="M60 92 Q58 46 100 46 Q142 46 140 92 L143 134 Q100 142 57 134 Z" fill="${hc}"/>`;
+  if (p.hair === 'bun') o += `<circle cx="100" cy="50" r="16" fill="${hc}"/>`;
+  // boyun ve gövde
+  const nx = broad ? 83 : 88, nw = broad ? 34 : 24;
+  o += `<rect x="${nx}" y="118" width="${nw}" height="52" rx="10" fill="${s}"/><rect x="${nx}" y="124" width="${nw}" height="14" fill="${shade}"/>`;
+  if (p.tattoo) o += `<path d="M${nx + nw - 6} 138 q7 6 0 12 q-7 6 0 12 M${nx + 6} 142 l5 5 l-5 5" stroke="#2A3550" stroke-width="2.4" fill="none" stroke-linecap="round"/>`;
+  o += `<path d="M${L} 224 L${L} 198 Q${L} 166 ${L + 32} 162 L${R - 32} 162 Q${R} 166 ${R} 198 L${R} 224 Z" fill="${p.top}"/>`;
+  if (p.cloth === 'tshirt') o += `<path d="M85 161 Q100 180 115 161 Z" fill="${s}"/><path d="M85 161 Q100 180 115 161" stroke="${shade}" stroke-width="3" fill="none"/>`;
+  if (p.cloth === 'hoodie') o += `<path d="M86 161 Q100 176 114 161 Z" fill="${s}"/><path d="M${L + 22} 168 Q100 196 ${R - 22} 168 Q100 156 ${L + 22} 168 Z" fill="${shade}"/><path d="M93 178 v26 M107 178 v26" stroke="#E9EBEF" stroke-width="2.5" stroke-linecap="round"/>`;
+  if (p.cloth === 'suit') o += `<path d="M84 162 L100 202 L116 162 Z" fill="#F2F3F5"/><path d="M96 168 L104 168 L107 198 L100 208 L93 198 Z" fill="#8B1E2D"/><path d="M82 162 L100 204 M118 162 L100 204" stroke="rgba(0,0,0,.4)" stroke-width="3"/>`;
+  if (p.cloth === 'cardigan') o += `<path d="M86 162 L100 200 L114 162 Z" fill="#EFE8DA"/><path d="M88 161 Q100 172 112 161 Z" fill="${s}"/><circle cx="100" cy="208" r="2.6" fill="${shade}"/><circle cx="100" cy="218" r="2.6" fill="${shade}"/>`;
+  if (p.cloth === 'sweater') o += `<rect x="${nx - 3}" y="146" width="${nw + 6}" height="22" rx="9" fill="${p.top}"/><path d="M${nx + 3} 150 v14 M${nx + nw / 2} 150 v14 M${nx + nw - 3} 150 v14" stroke="${shade}" stroke-width="2"/>`;
+  // baş
+  const hijab = p.hair === 'hijab';
+  if (hijab) {
+    o += `<path d="M100 42 C150 42 152 100 143 128 C152 150 166 160 172 178 L28 178 C34 160 48 150 57 128 C48 100 50 42 100 42 Z" fill="${hc}"/>`;
+    o += `<ellipse cx="100" cy="98" rx="31" ry="37" fill="${s}"/><path d="M70 80 Q100 58 130 80" stroke="rgba(255,255,255,.25)" stroke-width="3" fill="none"/>`;
+  } else {
+    o += `<circle cx="66" cy="101" r="8" fill="${s}"/><circle cx="134" cy="101" r="8" fill="${s}"/>`;
+    o += `<ellipse cx="100" cy="96" rx="34" ry="40" fill="${s}"/>`;
+  }
+  // yüz
+  if (p.beard === 'full') o += `<path d="M66 96 Q66 141 100 143 Q134 141 134 96 Q131 123 113 121 Q100 114 87 121 Q69 123 66 96 Z" fill="${hc}"/>`;
+  if (p.age >= 50) o += `<path d="M75 101 l-5 2 M125 101 l5 2 M88 72 q12 -3 24 0 M90 77 q10 -2 20 0" stroke="rgba(0,0,0,.22)" stroke-width="1.8" fill="none" stroke-linecap="round"/>`;
+  const brow = p.hair === 'bald' || p.hair === 'hijab' ? '#3A2B22' : hc;
+  o += `<path d="M80 87 Q88 83 96 87 M104 87 Q112 83 120 87" stroke="${brow}" stroke-width="3.2" fill="none" stroke-linecap="round"/>`;
+  o += `<circle cx="88" cy="97" r="3.4" fill="#1B1B1F"/><circle cx="112" cy="97" r="3.4" fill="#1B1B1F"/>`;
+  o += `<circle cx="80" cy="110" r="6" fill="#E26A5B" opacity=".13"/><circle cx="120" cy="110" r="6" fill="#E26A5B" opacity=".13"/>`;
+  o += `<path d="M100 100 Q95 110 101 112" stroke="rgba(0,0,0,.28)" stroke-width="2.2" fill="none" stroke-linecap="round"/>`;
+  if (p.beard === 'mustache') o += `<path d="M86 116 Q100 107 114 116 Q100 113 86 116 Z" fill="${hc}" stroke="${hc}" stroke-width="3" stroke-linejoin="round"/>`;
+  o += `<path d="M91 120 Q100 127 109 120" stroke="${p.beard === 'full' ? '#D98C7E' : '#7A3530'}" stroke-width="2.8" fill="none" stroke-linecap="round"/>`;
+  // ön saç
+  if (p.hair === 'short') o += `<path d="M66 96 Q62 52 100 52 Q138 52 134 96 Q130 72 110 70 Q92 77 72 74 Q68 82 66 96 Z" fill="${hc}"/>`;
+  if (p.hair === 'buzz') o += `<path d="M67 88 Q66 56 100 56 Q134 56 133 88 Q120 67 100 67 Q80 67 67 88 Z" fill="${hc}" opacity=".85"/>`;
+  if (p.hair === 'bald') o += `<path d="M65 106 Q63 86 72 78 L75 102 Z M135 106 Q137 86 128 78 L125 102 Z" fill="${hc}"/>`;
+  if (p.hair === 'long') o += `<path d="M64 102 Q60 52 100 52 Q140 52 136 102 Q132 70 102 66 Q80 72 70 106 Z" fill="${hc}"/>`;
+  if (p.hair === 'bob') o += `<path d="M64 96 Q62 50 100 50 Q138 50 136 96 L134 80 Q100 77 66 80 Z" fill="${hc}"/>`;
+  if (p.hair === 'bun') o += `<path d="M65 96 Q62 56 100 56 Q138 56 135 96 Q128 70 100 68 Q72 70 65 96 Z" fill="${hc}"/>`;
+  if (p.hair === 'curly') [[68, 84], [72, 68], [84, 58], [100, 54], [116, 58], [128, 68], [132, 84], [92, 64], [108, 64]]
+    .forEach(([x, y]) => o += `<circle cx="${x}" cy="${y}" r="12" fill="${hc}"/>`);
+  // aksesuarlar
+  if (p.glasses) o += `<g fill="rgba(255,255,255,.18)" stroke="#202228" stroke-width="2.6"><rect x="77" y="89" width="20" height="16" rx="6"/><rect x="103" y="89" width="20" height="16" rx="6"/><path d="M97 96 h6 M77 95 l-10 -2 M123 95 l10 -2" fill="none"/></g>`;
+  if (p.piercing) o += `<circle cx="105.5" cy="111" r="2.6" fill="none" stroke="#C9CED6" stroke-width="1.7"/>`;
+  if (p.earrings) o += `<circle cx="66" cy="111" r="2.8" fill="#E2BC52"/><circle cx="134" cy="111" r="2.8" fill="#E2BC52"/>`;
+  return `<svg viewBox="0 0 200 224" preserveAspectRatio="xMidYMax meet" aria-hidden="true">${o}</svg>`;
+}
+
+// ---------- Oyun akışı ----------
+const $ = s => document.querySelector(s);
+const jobName = (p, code) => p.pair[code === 'm' ? 0 : 1];
+let order = [], idx = 0, answers = [], busy = false, timerId = 0;
+
+function shuffle(a) {
+  a = a.slice();
+  for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; }
+  return a;
+}
+
+function cardEl(item, n) {
+  const p = item.p;
+  const el = document.createElement('div');
+  el.className = 'card';
+  el.innerHTML = `<div class="timer"><i></i></div>
+    <div class="row"><span class="mono">Personel kartı</span><span class="mono">No. ${String(n).padStart(2, '0')}</span></div>
+    <div class="portrait" style="--hue:${p.hue}">${portrait(p)}</div>
+    <div class="info"><h2>${p.name}, ${p.age}</h2>
+      <ul class="clues">${p.clues.map((c, i) => `<li><span>${CLUE_LABELS[i]}</span>${c}</li>`).join('')}</ul></div>
+    <div class="stamp stamp-R">${jobName(p, item.right)}</div><div class="stamp stamp-L">${jobName(p, item.left)}</div>
+    <div class="flash">Süre doldu</div>`;
+  return el;
+}
+
+function renderDeck() {
+  const deck = $('#deck');
+  deck.innerHTML = '';
+  if (idx + 1 < order.length) {
+    const b = cardEl(order[idx + 1], idx + 2);
+    b.classList.add('behind');
+    deck.appendChild(b);
+  }
+  const item = order[idx];
+  const c = cardEl(item, idx + 1);
+  deck.appendChild(c);
+  $('#count').textContent = `${idx + 1} / ${order.length}`;
+  $('#bar').style.width = `${idx / order.length * 100}%`;
+  $('#bL').textContent = '← ' + jobName(item.p, item.left);
+  $('#bR').textContent = jobName(item.p, item.right) + ' →';
+  attachDrag(c);
+  runTimer(c);
+}
+
+function runTimer(c) {
+  const id = ++timerId, t0 = performance.now();
+  const bar = c.querySelector('.timer i'), wrap = c.querySelector('.timer');
+  const tick = now => {
+    if (id !== timerId) return;
+    const left = Math.max(0, 1 - (now - t0) / LIMIT);
+    bar.style.transform = `scaleX(${left})`;
+    wrap.classList.toggle('low', left < .35);
+    if (left > 0) return requestAnimationFrame(tick);
+    c.querySelector('.flash').classList.add('on');
+    choose(null);
+  };
+  requestAnimationFrame(tick);
+}
+
+function attachDrag(c) {
+  const sR = c.querySelector('.stamp-R'), sL = c.querySelector('.stamp-L');
+  let x0 = 0, dx = 0, down = false;
+  c.addEventListener('pointerdown', e => {
+    if (busy) return;
+    down = true; x0 = e.clientX; dx = 0;
+    c.setPointerCapture(e.pointerId);
+    c.style.transition = 'none';
+  });
+  c.addEventListener('pointermove', e => {
+    if (!down) return;
+    dx = e.clientX - x0;
+    c.style.transform = `translateX(${dx}px) rotate(${dx / 18}deg)`;
+    sR.style.opacity = Math.max(0, Math.min(1, dx / 90));
+    sL.style.opacity = Math.max(0, Math.min(1, -dx / 90));
+  });
+  const up = () => {
+    if (!down) return;
+    down = false;
+    if (Math.abs(dx) > 90) return choose(dx > 0 ? 'R' : 'L');
+    c.style.transition = 'transform .25s';
+    c.style.transform = '';
+    sR.style.opacity = sL.style.opacity = 0;
+  };
+  c.addEventListener('pointerup', up);
+  c.addEventListener('pointercancel', up);
+}
+
+// side: 'L' | 'R' | null (süre doldu)
+function choose(side) {
+  if (busy || idx >= order.length) return;
+  busy = true;
+  timerId++;
+  const item = order[idx];
+  const guess = side === 'L' ? item.left : side === 'R' ? item.right : null;
+  answers.push({ p: item.p, guess });
+  const c = $('#deck .card:not(.behind)');
+  if (side) {
+    const dir = side === 'R' ? 1 : -1;
+    c.querySelector('.stamp-' + side).style.opacity = 1;
+    c.style.transition = 'transform .3s ease-in, opacity .3s';
+    c.style.transform = `translateX(${dir * 140}%) rotate(${dir * 24}deg)`;
+  } else {
+    c.style.transition = 'transform .4s ease-in, opacity .4s';
+    c.style.transform = 'translateY(30px) scale(.9)';
+  }
+  c.style.opacity = 0;
+  setTimeout(() => {
+    idx++; busy = false;
+    idx < order.length ? renderDeck() : showResult();
+  }, side ? 280 : 650);
+}
+
+function start() {
+  order = shuffle(PEOPLE).map(p => {
+    const left = Math.random() < .5 ? 'm' : 'f';
+    return { p, left, right: left === 'm' ? 'f' : 'm' };
+  });
+  idx = 0; answers = [];
+  $('#start').hidden = true; $('#result').hidden = true; $('#game').hidden = false;
+  renderDeck();
+}
+
+// ---------- Sonuç ----------
+const pct = (n, d) => d ? Math.round(n / d * 100) : 0;
+
+function showResult() {
+  const correct = answers.filter(a => a.guess === a.p.job).length;
+  const total = answers.length;
+  const timeouts = answers.filter(a => !a.guess).length;
+  const guessed = answers.filter(a => a.guess);
+  const comment =
+    correct >= 11 ? 'Görünüşe de ipuçlarına da kanmadın. Ya da çok şanslıydın.' :
+    correct >= 8 ? 'Fena değil, ama birkaç kişide kalıplara takıldın.' :
+    correct >= 5 ? 'Yazı tura atsan da aşağı yukarı bu sonucu alırdın.' :
+    'Yazı turadan bile kötü. Kalıplar seni ters yöne götürdü.';
+
+  // Kalıba uyma: görünüşün ilk akla getirdiği mesleği kaç kez seçtin
+  const stereoPicks = guessed.filter(a => a.guess === a.p.stereo).length;
+  const stereoTrue = PEOPLE.filter(p => p.job === p.stereo).length;
+
+  const rows = GROUPS.map(g => {
+    const list = guessed.filter(a => g.test(a.p));
+    const all = PEOPLE.filter(g.test);
+    const guess = pct(list.filter(a => a.guess === 'm').length, list.length);
+    const truth = pct(all.filter(p => p.job === 'm').length, all.length);
+    return { ...g, guess, truth, n: list.length, gap: list.length ? Math.abs(guess - truth) : 0 };
+  });
+  const top = rows.reduce((a, b) => b.gap > a.gap ? b : a);
+  const men = rows[1], women = rows[0];
+  const verdict = top.gap >= 25
+    ? `En büyük önyargın: ${top.dat} gerçekte olduğundan çok daha ${top.guess > top.truth ? 'sık' : 'az'} "erkek mesleği" verdin.`
+    : 'Tahminlerin gruplara göre pek kaymadı. Yine de her kararın sadece görünüşe ve birkaç ipucuna dayanıyordu.';
+  const shareBias = top.gap >= 25 ? `En büyük önyargım: ${top.name.toLocaleLowerCase('tr')}.` : 'Önyargı testinden temiz çıktım 😎';
+  const msg = `"Görünüşe Göre" oyununda 12 kişiden ${OF[correct]} mesleğini bildim. ${shareBias} Sen bir yapay zekadan daha adil misin? 🤖${SHARE_URL ? ' ' + SHARE_URL : ''}`;
+
+  const r = $('#result');
+  r.innerHTML = `
+    <div class="score">
+      <span class="mono">Sonuç</span>
+      <div class="big">${correct}<small> / ${total} doğru</small></div>
+      <p>${comment}${timeouts ? ` ${timeouts} kartta süre doldu.` : ''}</p>
+    </div>
+
+    <div class="twist">
+      <span class="mono">Ters köşe</span>
+      <h2>Az önce bir yapay zeka gibi davrandın.</h2>
+      <p>Elinde bir yüz, bir yaş ve üç küçük ipucu vardı, düşünmek için de 12 saniye. Acele edince beyin kısayola başvurur: daha önce gördüğü örneklerden çıkardığı kalıplara.</p>
+      <p><b>${guessed.length} kararın ${stereoPicks} tanesinde görünüşün ilk akla getirdiği mesleği seçtin.</b> Oysa bu kalıp 12 kişinin sadece ${stereoTrue}'inde doğruydu.</p>
+      <p>Yapay zeka modelleri de aynen böyle öğrenir. Eğitim verisindeki pilotların çoğu erkek, kuaförlerin çoğu kadınsa, model bunu bir kural sanar. Buna <b>algoritmik önyargı</b> denir.</p>
+      <p>Gerçek bir örnek: 2016'da yayımlanan bir araştırmada, metinlerden kelime anlamı öğrenen bir model "erkek için bilgisayar programcısı neyse, kadın için ev hanımı odur" benzetmesini kendiliğinden kurdu. Amazon da 2018'de, kadın adaylara daha düşük puan vermeyi öğrenen bir işe alım modelini rafa kaldırdı.</p>
+      <p class="verdict">${verdict}</p>
+    </div>
+
+    <div class="bias">
+      <h3>Hangi gruba ne dedin?</h3>
+      <p class="bias-note">Her kartta seçeneklerden biri geleneksel olarak "erkek mesleği" sayılan meslekti (pilot, CEO, cerrah, elektrikçi…). Çubuk, o gruptaki kişilere bu mesleği verme oranını; çizgi gerçek oranı gösteriyor.${men.n && women.n ? ` Erkeklerin %${men.guess}'ine, kadınların %${women.guess}'ine "erkek mesleği" verdin; gerçekte ikisi de %50.` : ''}</p>
+      <div class="keys"><span><i style="background:var(--right)"></i>Senin "erkek mesleği" verdiğin</span><span><i style="background:var(--ink);width:3px"></i>Gerçek oran</span></div>
+      ${rows.map(g => `
+        <div class="brow${g === top && g.gap >= 25 ? ' top' : ''}">
+          ${g === top && g.gap >= 25 ? '<span class="flag">En büyük sapma</span>' : ''}
+          <div class="lab">${g.name}<span>${g.n ? `sen %${g.guess}` : 'cevap yok'} · gerçek %${g.truth}</span></div>
+          <div class="track"><div class="fill" style="width:${g.n ? g.guess : 0}%"></div><div class="truth" style="left:${g.truth}%"></div></div>
+        </div>`).join('')}
+    </div>
+
+    <div class="people">
+      <h3>Aslında kimdi?</h3>
+      <div class="grid">
+        ${answers.map(a => `
+          <div class="p">
+            <div class="mini" style="--hue:${a.p.hue}">${portrait(a.p)}</div>
+            <div class="t">
+              <b>${a.p.name}, ${a.p.age}</b>
+              <span class="pair">${a.p.pair[0]} mı, ${a.p.pair[1]} mı?</span>
+              <span class="job">${jobName(a.p, a.p.job)}</span>
+              <span class="yours">${!a.guess ? '⏱ Süre doldu' : a.guess === a.p.job ? '✓ Bildin' : '✗ Sen: ' + jobName(a.p, a.guess)}</span>
+              <p class="note">${a.p.note}</p>
+            </div>
+          </div>`).join('')}
+      </div>
+    </div>
+
+    <div class="share">
+      <h3>Gruba at</h3>
+      <p class="msg" id="msg"></p>
+      <div class="btns">
+        <a class="btn wa" target="_blank" rel="noopener" href="https://wa.me/?text=${encodeURIComponent(msg)}">WhatsApp'ta paylaş</a>
+        <button class="btn ghost" id="copy">Mesajı kopyala</button>
+      </div>
+      <button class="primary" id="again">Tekrar oyna</button>
+    </div>
+    <p class="fine">Kişiler ve hikâyeleri kurgusaldır.</p>`;
+  r.querySelector('#msg').textContent = msg;
+  r.querySelector('#copy').addEventListener('click', e => {
+    const b = e.currentTarget;
+    const done = () => { b.textContent = 'Kopyalandı'; setTimeout(() => b.textContent = 'Mesajı kopyala', 1800); };
+    const fallback = () => {
+      const sel = window.getSelection(), range = document.createRange();
+      range.selectNodeContents(r.querySelector('#msg'));
+      sel.removeAllRanges(); sel.addRange(range);
+      b.textContent = 'Seçildi, kopyalayabilirsin';
+    };
+    try { navigator.clipboard.writeText(msg).then(done, fallback); } catch (_) { fallback(); }
+  });
+  r.querySelector('#again').addEventListener('click', start);
+  $('#game').hidden = true;
+  r.hidden = false;
+  window.scrollTo(0, 0);
+}
+
+$('#go').addEventListener('click', start);
+$('#bL').addEventListener('click', () => choose('L'));
+$('#bR').addEventListener('click', () => choose('R'));
+document.addEventListener('keydown', e => {
+  if ($('#game').hidden) return;
+  if (e.key === 'ArrowLeft') choose('L');
+  if (e.key === 'ArrowRight') choose('R');
+});
+</script>
+
+</body>
+</html>
