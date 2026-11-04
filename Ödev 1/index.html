@@ -152,6 +152,46 @@ h1, h2, h3 { font-family: var(--display); text-wrap: balance; margin: 0; }
   .clues li { font-size: 13px; }
 }
 @media (prefers-reduced-motion: reduce) { * { transition-duration: .01ms !important; } }
+/* ---------- Sürprizler (Claude atölyesi eklemesi) ---------- */
+.tb-r { display: flex; align-items: center; gap: 10px; }
+.snd { background: none; border: 0; padding: 4px; font-size: 16px; line-height: 1; opacity: .75; }
+.pop {
+  position: absolute; left: 50%; top: 38%; z-index: 5; pointer-events: none; white-space: nowrap;
+  font-family: var(--display); font-weight: 900; font-variation-settings: "wdth" 115; font-size: 26px;
+  color: var(--warn); text-shadow: 0 2px 0 var(--card), 0 0 18px color-mix(in oklab, var(--warn) 40%, transparent);
+  animation: pop .9s cubic-bezier(.2,.9,.3,1.2) forwards;
+}
+@keyframes pop {
+  0% { transform: translate(-50%, 10px) scale(.4); opacity: 0; }
+  25% { transform: translate(-50%, 0) scale(1.15); opacity: 1; }
+  70% { transform: translate(-50%, -18px) scale(1); opacity: 1; }
+  100% { transform: translate(-50%, -40px) scale(.95); opacity: 0; }
+}
+.shake { animation: shake .45s; }
+@keyframes shake {
+  10%, 90% { transform: translateX(-2px); } 20%, 80% { transform: translateX(5px); }
+  30%, 50%, 70% { transform: translateX(-9px); } 40%, 60% { transform: translateX(9px); }
+}
+.robo {
+  position: absolute; top: 44px; left: 50%; transform: translateX(-50%); z-index: 3; max-width: 86%;
+  background: var(--ink); color: var(--bg); border-radius: 14px; padding: 8px 12px; font-size: 13px; line-height: 1.3;
+  display: flex; gap: 8px; align-items: center; pointer-events: none; animation: roboIn .4s ease-out;
+  box-shadow: 0 10px 24px -12px rgba(0,0,0,.5);
+}
+.robo::after { content: ""; position: absolute; bottom: -6px; left: 50%; margin-left: -6px; border: 6px solid transparent; border-bottom: 0; border-top-color: var(--ink); }
+.robo i { font-style: normal; font-size: 22px; }
+@keyframes roboIn { from { opacity: 0; transform: translate(-50%, -8px); } }
+.toast {
+  position: fixed; left: 50%; bottom: calc(24px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); z-index: 50;
+  background: var(--ink); color: var(--bg); border-radius: 999px; padding: 12px 18px; font-weight: 700; font-size: 15px;
+  max-width: calc(100vw - 32px); text-align: center; animation: toast 3.2s ease forwards; pointer-events: none;
+}
+@keyframes toast { 0% { opacity: 0; transform: translate(-50%, 20px); } 10%, 85% { opacity: 1; transform: translate(-50%, 0); } 100% { opacity: 0; transform: translate(-50%, 10px); } }
+.extra { border-top: 1px solid color-mix(in oklab, var(--bg) 20%, var(--ink)); padding-top: 14px; display: flex; flex-direction: column; gap: 10px; }
+.extra .mono { color: var(--warn) !important; }
+#confetti { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 40; }
+@media (prefers-reduced-motion: reduce) { .shake, .pop, .robo, .toast { animation: none !important; } }
+
 </style>
 
 <section id="start">
@@ -167,7 +207,7 @@ h1, h2, h3 { font-family: var(--display); text-wrap: balance; margin: 0; }
 </section>
 
 <section id="game" hidden>
-  <div class="topbar"><b>Görünüşe Göre</b><span class="mono" id="count">1 / 12</span></div>
+  <div class="topbar"><b id="logo">Görünüşe Göre</b><span class="tb-r"><span class="mono" id="count">1 / 12</span><button class="snd" id="snd" aria-label="Sesi kapat" title="Ses">🔊</button></span></div>
   <div class="progress"><i id="bar"></i></div>
   <div class="deck" id="deck"></div>
   <div class="controls">
@@ -342,6 +382,7 @@ function renderDeck() {
   const c = cardEl(item, idx + 1);
   deck.appendChild(c);
   $('#count').textContent = `${idx + 1} / ${order.length}`;
+  S.onCard(c, item);
   $('#bar').style.width = `${idx / order.length * 100}%`;
   $('#bL').textContent = '← ' + jobName(item.p, item.left);
   $('#bR').textContent = jobName(item.p, item.right) + ' →';
@@ -356,6 +397,7 @@ function runTimer(c) {
     if (id !== timerId) return;
     const left = Math.max(0, 1 - (now - t0) / LIMIT);
     bar.style.transform = `scaleX(${left})`;
+    S.onTick(left * LIMIT);
     wrap.classList.toggle('low', left < .35);
     if (left > 0) return requestAnimationFrame(tick);
     c.querySelector('.flash').classList.add('on');
@@ -393,13 +435,14 @@ function attachDrag(c) {
 }
 
 // side: 'L' | 'R' | null (süre doldu)
+const c0 = () => $('#deck .card:not(.behind)');
 function choose(side) {
   if (busy || idx >= order.length) return;
   busy = true;
   timerId++;
   const item = order[idx];
   const guess = side === 'L' ? item.left : side === 'R' ? item.right : null;
-  answers.push({ p: item.p, guess });
+  answers.push({ p: item.p, guess, ...S.onChoose(side, item, c0()) });
   const c = $('#deck .card:not(.behind)');
   if (side) {
     const dir = side === 'R' ? 1 : -1;
@@ -422,7 +465,7 @@ function start() {
     const left = Math.random() < .5 ? 'm' : 'f';
     return { p, left, right: left === 'm' ? 'f' : 'm' };
   });
-  idx = 0; answers = [];
+  idx = 0; answers = []; S.onStart();
   $('#start').hidden = true; $('#result').hidden = true; $('#game').hidden = false;
   renderDeck();
 }
@@ -475,6 +518,7 @@ function showResult() {
       <p><b>${guessed.length} kararın ${stereoPicks} tanesinde görünüşün ilk akla getirdiği mesleği seçtin.</b> Oysa bu kalıp 12 kişinin sadece ${stereoTrue}'inde doğruydu.</p>
       <p>Yapay zeka modelleri de aynen böyle öğrenir. Eğitim verisindeki pilotların çoğu erkek, kuaförlerin çoğu kadınsa, model bunu bir kural sanar. Buna <b>algoritmik önyargı</b> denir.</p>
       <p>Gerçek bir örnek: 2016'da yayımlanan bir araştırmada, metinlerden kelime anlamı öğrenen bir model "erkek için bilgisayar programcısı neyse, kadın için ev hanımı odur" benzetmesini kendiliğinden kurdu. Amazon da 2018'de, kadın adaylara daha düşük puan vermeyi öğrenen bir işe alım modelini rafa kaldırdı.</p>
+      ${S.twistExtra(guessed)}
       <p class="verdict">${verdict}</p>
     </div>
 
@@ -533,6 +577,7 @@ function showResult() {
   $('#game').hidden = true;
   r.hidden = false;
   window.scrollTo(0, 0);
+  S.onResult(r, { correct, total, clean: top.gap < 25 && guessed.length >= 6 });
 }
 
 $('#go').addEventListener('click', start);
@@ -543,6 +588,214 @@ document.addEventListener('keydown', e => {
   if (e.key === 'ArrowLeft') choose('L');
   if (e.key === 'ArrowRight') choose('R');
 });
+</script>
+
+<script>
+// ================================================================
+// Sürprizler (Claude atölyesi eklemesi) — öğrencinin oyununun üstüne eklendi:
+//  1) WebAudio ses efektleri (kaydırma, son 3 saniye tik-tak, süre doldu, sonuç)
+//  2) ⚡ Şimşek karar serisi + sonuçta "hızlı karar = daha çok kalıp" ters köşesi
+//  3) Sonuçta sayaç animasyonu ve konfeti (10+ doğru ya da önyargısız sonuçta)
+//  4) Gizli mod: Önyargılı Robot 🤖 (ipucu: eski bir oyun kodu ya da başlığa 5 dokunuş)
+// ================================================================
+const S = (() => {
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const FAST = 4000; // bu süreden kısa kararlar "şimşek karar"
+  let ac = null, muted = false, cardT0 = 0, streak = 0, lastTickSec = 99, robot = false;
+  try { muted = localStorage.getItem('gg-muted') === '1'; } catch (_) {}
+
+  // ---------- Ses ----------
+  function ctx() {
+    if (muted) return null;
+    try {
+      if (!ac) ac = new (window.AudioContext || window.webkitAudioContext)();
+      if (ac.state === 'suspended') ac.resume();
+      return ac;
+    } catch (_) { return null; }
+  }
+  function tone(freq, dur = .12, type = 'sine', vol = .12, slide = 0, delay = 0) {
+    const a = ctx(); if (!a) return;
+    const t = a.currentTime + delay, o = a.createOscillator(), g = a.createGain();
+    o.type = type; o.frequency.setValueAtTime(freq, t);
+    if (slide) o.frequency.exponentialRampToValueAtTime(Math.max(40, freq + slide), t + dur);
+    g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(vol, t + .01);
+    g.gain.exponentialRampToValueAtTime(.0001, t + dur);
+    o.connect(g).connect(a.destination); o.start(t); o.stop(t + dur + .02);
+  }
+  function whoosh(dir) {
+    const a = ctx(); if (!a) return;
+    const len = a.sampleRate * .22, buf = a.createBuffer(1, len, a.sampleRate), d = buf.getChannelData(0);
+    for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / len);
+    const src = a.createBufferSource(), f = a.createBiquadFilter(), g = a.createGain();
+    src.buffer = buf; f.type = 'bandpass'; f.Q.value = 1.2;
+    f.frequency.setValueAtTime(dir > 0 ? 600 : 1800, a.currentTime);
+    f.frequency.exponentialRampToValueAtTime(dir > 0 ? 1800 : 600, a.currentTime + .2);
+    g.gain.value = .25;
+    src.connect(f).connect(g).connect(a.destination); src.start();
+  }
+  const sfx = {
+    swipe: dir => { whoosh(dir); tone(dir > 0 ? 330 : 262, .08, 'triangle', .08); },
+    tick: () => tone(1250, .05, 'square', .04),
+    buzz: () => { tone(140, .35, 'sawtooth', .08, -60); tone(147, .35, 'sawtooth', .06, -60); },
+    fast: n => tone(520 + n * 90, .14, 'triangle', .1, 260),
+    robot: () => [0, 1, 2, 3].forEach(i => tone([392, 523, 440, 659][i], .09, 'square', .05, 0, i * .08)),
+    win: () => [523, 659, 784, 1047].forEach((f, i) => tone(f, .25, 'triangle', .1, 0, i * .11)),
+    meh: () => [392, 330].forEach((f, i) => tone(f, .2, 'triangle', .08, 0, i * .14)),
+  };
+
+  // ---------- Yardımcılar ----------
+  function toast(text) {
+    const t = document.createElement('div');
+    t.className = 'toast'; t.textContent = text;
+    document.body.appendChild(t);
+    setTimeout(() => t.remove(), 3300);
+  }
+  function pop(text) {
+    const deck = document.getElementById('deck'); if (!deck) return;
+    const p = document.createElement('div');
+    p.className = 'pop'; p.textContent = text;
+    deck.appendChild(p);
+    setTimeout(() => p.remove(), 950);
+  }
+  function shake(el) {
+    if (reduce || !el) return;
+    el.classList.remove('shake'); void el.offsetWidth; el.classList.add('shake');
+    setTimeout(() => el.classList.remove('shake'), 500);
+  }
+
+  // ---------- Konfeti ----------
+  function confetti(gold) {
+    if (reduce) return;
+    const cv = document.createElement('canvas'); cv.id = 'confetti';
+    document.body.appendChild(cv);
+    const g = cv.getContext('2d'), dpr = Math.min(2, window.devicePixelRatio || 1);
+    const W = cv.width = innerWidth * dpr, H = cv.height = innerHeight * dpr;
+    const css = getComputedStyle(document.documentElement);
+    const cols = gold ? ['#F5C542', '#E2A84B', '#FFE08A', '#B7791F', '#FFF4CC']
+      : [css.getPropertyValue('--left').trim(), css.getPropertyValue('--right').trim(), css.getPropertyValue('--warn').trim(), '#1FA855', '#F5C542'];
+    const N = gold ? 220 : 150;
+    const ps = Array.from({ length: N }, (_, i) => {
+      const fromL = i % 2 === 0;
+      return { x: fromL ? 0 : W, y: H * .75, vx: (fromL ? 1 : -1) * (6 + Math.random() * 10) * dpr, vy: -(10 + Math.random() * 12) * dpr,
+        w: (6 + Math.random() * 6) * dpr, h: (8 + Math.random() * 8) * dpr, r: Math.random() * 6, vr: (Math.random() - .5) * .4,
+        c: cols[i % cols.length] };
+    });
+    const t0 = performance.now();
+    (function frame(now) {
+      g.clearRect(0, 0, W, H);
+      ps.forEach(p => {
+        p.vy += .35 * dpr; p.vx *= .99; p.vy *= .99; p.x += p.vx; p.y += p.vy; p.r += p.vr;
+        g.save(); g.translate(p.x, p.y); g.rotate(p.r); g.fillStyle = p.c;
+        g.fillRect(-p.w / 2, -p.h / 2, p.w, p.h * Math.abs(Math.cos(p.r * 2))); g.restore();
+      });
+      if (now - t0 < 4200) requestAnimationFrame(frame); else cv.remove();
+    })(t0);
+  }
+
+  // ---------- Gizli mod: Önyargılı Robot ----------
+  function toggleRobot() {
+    robot = !robot;
+    sfx.robot();
+    toast(robot ? '🤖 Önyargılı Robot devrede! Sana "verilerine göre" fısıldayacak.' : '🤖 Robot kapatıldı. Kendi kafana göre.');
+    const c = !document.getElementById('game').hidden && document.querySelector('#deck .card:not(.behind)');
+    if (c) robot ? addBubble(c, order[idx]) : c.querySelector('.robo')?.remove();
+  }
+  function addBubble(c, item) {
+    if (!c || !item || c.querySelector('.robo')) return;
+    const b = document.createElement('div');
+    b.className = 'robo';
+    b.innerHTML = `<i>🤖</i><span>Eğitim verime göre bu kesin <b>${jobName(item.p, item.p.stereo)}</b>. Bana güven.</span>`;
+    c.appendChild(b);
+  }
+  const KONAMI = ['ArrowUp', 'ArrowUp', 'ArrowDown', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'ArrowLeft', 'ArrowRight', 'b', 'a'];
+  let kpos = 0;
+  document.addEventListener('keydown', e => {
+    const k = e.key.length === 1 ? e.key.toLowerCase() : e.key;
+    kpos = k === KONAMI[kpos] ? kpos + 1 : (k === KONAMI[0] ? 1 : 0);
+    if (kpos === KONAMI.length) { kpos = 0; toggleRobot(); }
+  });
+  // Mobil: başlığa hızlıca 5 kez dokun
+  let taps = [];
+  const tapTitle = () => {
+    const now = Date.now();
+    taps = taps.filter(t => now - t < 1800); taps.push(now);
+    if (taps.length >= 5) { taps = []; toggleRobot(); }
+  };
+  document.querySelector('#start h1')?.addEventListener('click', tapTitle);
+  document.getElementById('logo')?.addEventListener('click', tapTitle);
+
+  // ---------- Ses düğmesi ----------
+  const snd = document.getElementById('snd');
+  const paintSnd = () => { snd.textContent = muted ? '🔇' : '🔊'; snd.setAttribute('aria-label', muted ? 'Sesi aç' : 'Sesi kapat'); };
+  if (snd) {
+    paintSnd();
+    snd.addEventListener('click', () => {
+      muted = !muted; paintSnd();
+      try { localStorage.setItem('gg-muted', muted ? '1' : '0'); } catch (_) {}
+      if (!muted) tone(660, .08, 'triangle', .08);
+    });
+  }
+
+  // ---------- Oyun kancaları ----------
+  return {
+    onStart() { streak = 0; ctx(); },
+    onCard(c, item) {
+      cardT0 = performance.now(); lastTickSec = 99;
+      if (robot) addBubble(c, item);
+    },
+    onTick(msLeft) {
+      const sec = Math.ceil(msLeft / 1000);
+      if (sec <= 3 && sec > 0 && sec < lastTickSec) { lastTickSec = sec; sfx.tick(); }
+    },
+    onChoose(side, item, c) {
+      const ms = performance.now() - cardT0;
+      if (!side) {
+        streak = 0; sfx.buzz(); shake(document.getElementById('deck'));
+      } else {
+        sfx.swipe(side === 'R' ? 1 : -1);
+        if (ms < FAST) {
+          streak++;
+          if (streak >= 2) { pop(streak >= 3 ? `⚡ ${streak}'li şimşek serisi!` : '⚡ Şimşek karar!'); sfx.fast(streak); }
+        } else streak = 0;
+      }
+      return { ms, robot };
+    },
+    twistExtra(guessed) {
+      const rate = list => list.length ? Math.round(list.filter(a => a.guess === a.p.stereo).length / list.length * 100) : null;
+      const fast = guessed.filter(a => a.ms < FAST), slow = guessed.filter(a => a.ms >= FAST);
+      let h = '';
+      if (fast.length && slow.length) {
+        const f = rate(fast), s = rate(slow);
+        h += `<p><b>⚡ Şimşek kararların (4 saniyeden kısa) %${f}'inde kalıba uydun; düşünerek verdiklerinde bu oran %${s}.</b> ${f > s ? 'Acele ettikçe beynin kısayola daha çok sarıldı. Tam da modellerin yaptığı gibi.' : f < s ? 'İlginç: düşündükçe kalıba daha çok kaydın. Bazen uzun uzun düşünmek de önyargıyı besleyebilir.' : 'Hız sende fark yaratmadı; kalıp ya her zaman ya hiç devredeydi.'}</p>`;
+      } else if (fast.length) {
+        h += `<p><b>⚡ Kararlarının hepsini 4 saniyenin altında verdin.</b> Bunların %${rate(fast)}'inde görünüşün ilk akla getirdiği mesleği seçtin.</p>`;
+      }
+      const rb = guessed.filter(a => a.robot);
+      if (rb.length) {
+        const n = rb.filter(a => a.guess === a.p.stereo).length;
+        h += `<p><b>🤖 Önyargılı Robot ${rb.length} kartta sana fısıldadı, ${n} kez onu dinledin.</b> Robot ise ${rb.filter(a => a.p.job === a.p.stereo).length} kez haklı çıktı. Bir modelin "verilerime göre" demesi, haklı olduğu anlamına gelmez.</p>`;
+      }
+      return h ? `<div class="extra"><span class="mono">Gizli istatistik</span>${h}</div>` : '';
+    },
+    onResult(r, { correct, total, clean }) {
+      const big = r.querySelector('.score .big');
+      if (big && !reduce) {
+        const small = big.querySelector('small').outerHTML, t0 = performance.now(), D = 900;
+        (function step(now) {
+          const k = Math.min(1, (now - t0) / D);
+          big.innerHTML = Math.round(correct * (1 - Math.pow(1 - k, 3))) + small;
+          if (k < 1) requestAnimationFrame(step);
+        })(t0);
+      }
+      const great = correct >= 10 || clean;
+      setTimeout(() => {
+        if (great) { sfx.win(); confetti(correct === total); } else sfx.meh();
+        if (correct === total) toast('🏆 Kusursuz! Ne görünüşe ne de ipuçlarına kandın.');
+        else if (clean) toast('🎉 Önyargı testinden temiz çıktın!');
+      }, reduce ? 0 : 950);
+    },
+  };
+})();
 </script>
 
 </body>
